@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="발로 버는 사료">
+<meta name="theme-color" content="#0E1319">
+<title>발로 버는 사료</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root{
+  --night:#0E1319; --raise:#171F27; --raise2:#1E2831; --line:#28323D;
+  --halo:#F2B450; --halo-d:#8A6524; --moss:#5DBB8A;
+  --text:#E9EDF2; --dim:#7E8D9C; --dim2:#57646F; --r:16px;
+  --disp:"Bricolage Grotesque",-apple-system,sans-serif;
+  --body:Pretendard,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;background:var(--night)}
+body{color:var(--text);font-family:var(--body);font-size:16px;line-height:1.5;
+  -webkit-font-smoothing:antialiased;overscroll-behavior-y:contain;min-height:100vh;min-height:100dvh}
+body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(120% 62% at 50% -8%,rgba(242,180,80,.10) 0%,transparent 62%),
+             radial-gradient(90% 50% at 88% 104%,rgba(93,187,138,.07) 0%,transparent 60%)}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+.num{font-family:var(--disp);font-variant-numeric:tabular-nums;font-weight:700}
+.app{position:relative;z-index:1;max-width:520px;margin:0 auto;
+  padding:calc(env(safe-area-inset-top) + 12px) 20px calc(env(safe-area-inset-bottom) + 96px)}
+
+.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.mark{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:800;letter-spacing:-.03em}
+.mark svg{width:19px;height:19px;fill:var(--halo)}
+.chip{display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:700;
+  padding:6px 11px;border-radius:99px;background:var(--raise);border:1px solid var(--line);color:var(--dim)}
+.chip i{width:6px;height:6px;border-radius:50%;background:var(--dim2);flex:none}
+.chip.on i{background:var(--moss);box-shadow:0 0 8px var(--moss)}
+.chip.sim i{background:var(--halo);box-shadow:0 0 8px var(--halo)}
+
+.tabs{display:flex;gap:3px;background:var(--raise);padding:4px;border-radius:13px;
+  border:1px solid var(--line);margin-bottom:22px}
+.tabs button{flex:1;height:38px;border-radius:9px;font-size:13px;font-weight:700;color:var(--dim);transition:.18s}
+.tabs button[aria-selected="true"]{background:var(--raise2);color:var(--text)}
+.page[hidden]{display:none}
+
+/* ---------- dial + map porthole ---------- */
+.dial{position:relative;width:100%;aspect-ratio:1;max-width:300px;margin:4px auto 18px}
+.port{position:absolute;left:50%;top:50%;width:78%;height:78%;transform:translate(-50%,-50%);
+  border-radius:50%;overflow:hidden;background:#101820;
+  box-shadow:inset 0 0 40px rgba(0,0,0,.75),0 0 0 1px var(--line)}
+.port #map{position:absolute;inset:0}
+.port::after{content:"";position:absolute;inset:0;pointer-events:none;border-radius:50%;
+  background:radial-gradient(circle,transparent 38%,rgba(14,19,25,.72) 78%,rgba(14,19,25,.94) 100%)}
+.port.off #map{display:none}
+.dial svg.ov{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+.glow{position:absolute;left:50%;top:50%;width:82%;height:82%;transform:translate(-50%,-50%);
+  border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle,rgba(242,180,80,.14) 0%,rgba(242,180,80,.03) 48%,transparent 70%);
+  opacity:.5;transition:opacity .5s}
+.dial.live .glow{opacity:1;animation:br 4.5s ease-in-out infinite}
+@keyframes br{0%,100%{transform:translate(-50%,-50%) scale(1)}50%{transform:translate(-50%,-50%) scale(1.06)}}
+.dial.flare .glow{opacity:1;transform:translate(-50%,-50%) scale(1.5);transition:.15s}
+
+.face{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;pointer-events:none}
+.kmv{font-family:var(--disp);font-weight:800;font-size:clamp(50px,16vw,70px);line-height:.9;
+  letter-spacing:-.045em;font-variant-numeric:tabular-nums;text-shadow:0 2px 22px rgba(14,19,25,.95)}
+.kmu{font-size:10.5px;font-weight:800;letter-spacing:.24em;color:var(--dim);margin-top:8px;
+  text-shadow:0 1px 10px rgba(14,19,25,.9)}
+.togo{margin-top:13px;font-size:12.5px;color:var(--dim);font-weight:600;text-shadow:0 1px 10px rgba(14,19,25,.95)}
+.togo b{color:var(--halo);font-family:var(--disp);font-weight:700}
+
+.dctl{position:absolute;bottom:2px;left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:5}
+.dctl button{font-size:10.5px;font-weight:700;padding:6px 11px;border-radius:99px;
+  background:rgba(23,31,39,.9);border:1px solid var(--line);color:var(--dim);
+  -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
+.dctl button.act{color:var(--moss);border-color:rgba(93,187,138,.4)}
+
+/* ---------- stamps ---------- */
+.stamps{display:flex;gap:6px;justify-content:center;margin-bottom:9px}
+.st{width:26px;height:26px;border-radius:50%;background:var(--raise);border:1px solid var(--line);
+  display:grid;place-items:center;transition:transform .3s cubic-bezier(.34,1.6,.64,1),background .25s,border-color .25s}
+.st svg{width:15px;height:15px;fill:var(--dim2);transition:fill .25s}
+.st.done{background:rgba(242,180,80,.14);border-color:var(--halo-d)}
+.st.done svg{fill:var(--halo)}
+.st.hit{transform:scale(1.45) rotate(-9deg)}
+.stcap{text-align:center;font-size:11px;color:var(--dim2);font-weight:700;margin-bottom:22px}
+
+.strip{display:grid;grid-template-columns:1fr 1fr 1fr;background:var(--raise);
+  border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin-bottom:14px}
+.strip>div{padding:14px 8px;text-align:center;border-left:1px solid var(--line)}
+.strip>div:first-child{border-left:none}
+.strip .k{font-size:10.5px;color:var(--dim2);font-weight:700;margin-bottom:6px}
+.strip .v{font-family:var(--disp);font-size:20px;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.strip .v.p{color:var(--halo)}
+
+.card{background:var(--raise);border:1px solid var(--line);border-radius:var(--r);padding:17px;margin-bottom:12px}
+.card h3{margin:0 0 6px;font-size:15px;font-weight:800;letter-spacing:-.025em}
+.card p{margin:0;font-size:13px;color:var(--dim);line-height:1.65}
+.card p+p{margin-top:9px}
+.card p b{color:var(--text);font-weight:700}
+.eb{font-size:10.5px;font-weight:800;letter-spacing:.11em;color:var(--halo);margin-bottom:10px}
+.eb.g{color:var(--moss)}
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;
+  padding:5px 10px;border-radius:99px;background:rgba(93,187,138,.13);color:var(--moss);
+  border:1px solid rgba(93,187,138,.28)}
+.badge svg{width:12px;height:12px;fill:currentColor}
+
+.rows{list-style:none;margin:0;padding:0}
+.rows li{display:flex;gap:12px;padding:13px 0;border-top:1px solid var(--line);font-size:13px;line-height:1.6;color:var(--dim)}
+.rows li:first-child{border-top:none;padding-top:2px}
+.rows em{font-style:normal;color:var(--text);font-weight:700}
+.rows b{flex:none;width:20px;height:20px;border-radius:6px;background:var(--raise2);color:var(--halo);
+  font-family:var(--disp);font-size:11px;font-weight:700;display:grid;place-items:center;margin-top:1px}
+
+.fld{margin-bottom:19px}.fld:last-child{margin-bottom:2px}
+.fld label{display:flex;justify-content:space-between;align-items:baseline;font-size:12.5px;
+  font-weight:700;color:var(--dim);margin-bottom:10px}
+.fld label b{font-family:var(--disp);font-size:17px;font-weight:700;color:var(--halo);letter-spacing:-.02em}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:24px;background:transparent;display:block}
+input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:99px;background:var(--raise2)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;
+  background:var(--halo);margin-top:-9px;box-shadow:0 0 0 4px rgba(242,180,80,.15)}
+input[type=range]::-moz-range-track{height:4px;border-radius:99px;background:var(--raise2)}
+input[type=range]::-moz-range-thumb{width:22px;height:22px;border:none;border-radius:50%;background:var(--halo)}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.cell{background:var(--raise2);border-radius:12px;padding:14px 13px}
+.cell .k{font-size:10.5px;color:var(--dim2);font-weight:700;margin-bottom:6px}
+.cell .v{font-family:var(--disp);font-size:19px;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.cell .v.p{color:var(--halo)}.cell .v.g{color:var(--moss)}
+
+.rep{background:var(--raise2);border:1px solid var(--line);border-radius:12px;padding:16px;font-size:13px}
+.rep .rh{font-size:11px;color:var(--dim2);font-weight:700;letter-spacing:.06em;margin-bottom:3px}
+.rep .rt{font-size:15px;font-weight:800;margin-bottom:14px;letter-spacing:-.02em}
+.rl{display:flex;justify-content:space-between;align-items:baseline;padding:8px 0;color:var(--dim)}
+.rl+.rl{border-top:1px solid var(--line)}
+.rl.ind{padding-left:13px}
+.rl span:last-child{font-family:var(--disp);font-weight:700;color:var(--text);font-variant-numeric:tabular-nums}
+.rl.hi span:last-child{color:var(--moss)}
+.rl.off span:last-child{color:var(--dim2)}
+.rl.tot{margin-top:5px;padding-top:12px}
+.rl.tot span:last-child{color:var(--halo);font-size:17px}
+
+.note{background:rgba(242,180,80,.07);border:1px solid rgba(242,180,80,.2);border-radius:var(--r);
+  padding:15px;margin-bottom:12px;font-size:12.5px;line-height:1.65;color:#D6B47C}
+.note b{display:block;color:var(--halo);font-size:12.5px;margin-bottom:5px;font-weight:800}
+
+.cta{position:fixed;left:0;right:0;bottom:0;z-index:40;
+  padding:16px 20px calc(env(safe-area-inset-bottom) + 12px);
+  background:linear-gradient(180deg,rgba(14,19,25,0),var(--night) 30%)}
+.cta-in{max-width:520px;margin:0 auto;display:flex;gap:9px}
+.btn{flex:1;height:56px;border-radius:15px;font-size:16px;font-weight:800;letter-spacing:-.02em;
+  background:var(--halo);color:#1A1204;transition:transform .1s}
+.btn:active{transform:scale(.975)}
+.btn.ghost{background:var(--raise);color:var(--text);border:1px solid var(--line);flex:0 0 100px}
+
+.sheet{position:fixed;inset:0;z-index:90;display:grid;place-items:end center;
+  background:rgba(6,9,12,.72);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.sheet[hidden]{display:none}
+.sin{width:100%;max-width:520px;background:var(--raise);border:1px solid var(--line);border-bottom:none;
+  border-radius:24px 24px 0 0;padding:14px 22px calc(env(safe-area-inset-bottom) + 22px);
+  text-align:center;animation:up .34s cubic-bezier(.2,.85,.3,1)}
+@keyframes up{from{transform:translateY(101%)}to{transform:translateY(0)}}
+.hnd{width:38px;height:4px;border-radius:99px;background:var(--line);margin:0 auto 20px}
+.sin h2{margin:0 0 6px;font-size:21px;font-weight:800;letter-spacing:-.03em}
+.sub{margin:0 0 20px;font-size:12.5px;color:var(--dim)}
+.ad{background:var(--raise2);border:1px solid var(--line);border-radius:14px;padding:24px 18px;margin-bottom:16px}
+.ad .tg{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.1em;color:var(--dim2);
+  border:1px solid var(--line);border-radius:5px;padding:3px 7px;margin-bottom:13px}
+.ad .nm{font-size:18px;font-weight:800;letter-spacing:-.025em;margin-bottom:5px}
+.ad .ln{font-size:12.5px;color:var(--dim)}
+.cnt{font-family:var(--disp);font-size:46px;font-weight:700;color:var(--halo);letter-spacing:-.04em;margin:14px 0 2px}
+.won{font-family:var(--disp);font-size:60px;font-weight:800;color:var(--halo);letter-spacing:-.045em;margin:10px 0 6px}
+
+/* ---------- fullscreen map ---------- */
+.full{position:fixed;inset:0;z-index:95;background:var(--night)}
+.full[hidden]{display:none}
+#bigmap{position:absolute;inset:0}
+.fbar{position:absolute;top:0;left:0;right:0;z-index:5;display:flex;align-items:center;
+  justify-content:space-between;gap:10px;
+  padding:calc(env(safe-area-inset-top) + 12px) 16px 14px;
+  background:linear-gradient(180deg,rgba(14,19,25,.95),transparent)}
+.fbar .t{font-size:13px;font-weight:700;color:var(--dim)}
+.fbar .t b{font-family:var(--disp);font-size:20px;color:var(--text);letter-spacing:-.03em}
+.fx{width:38px;height:38px;border-radius:11px;background:var(--raise);border:1px solid var(--line);
+  display:grid;place-items:center;font-size:17px;color:var(--text);flex:none}
+
+.leaflet-container{background:#101820!important;font-family:var(--body)!important}
+.leaflet-container.dk .leaflet-tile{filter:invert(1) hue-rotate(180deg) brightness(.86) contrast(.92) saturate(.55)}
+.maperr{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;
+  justify-content:center;gap:9px;text-align:center;padding:0 34px;z-index:3}
+.port.dead .maperr{display:flex}
+.maperr p{margin:0;font-size:11px;color:var(--dim2);font-weight:600;line-height:1.5}
+.maperr button{font-size:11px;font-weight:700;padding:7px 13px;border-radius:99px;
+  background:var(--raise2);border:1px solid var(--line);color:var(--text)}
+.leaflet-control-attribution{background:rgba(14,19,25,.72)!important;color:var(--dim2)!important;
+  font-size:9px!important;padding:1px 5px!important}
+.leaflet-control-attribution a{color:var(--dim)!important}
+.pulse{width:14px;height:14px;border-radius:50%;background:var(--halo);
+  box-shadow:0 0 0 3px rgba(242,180,80,.28),0 0 14px rgba(242,180,80,.75)}
+.gp{width:100%;height:100%}
+.gp svg{width:100%;height:100%;fill:var(--moss)}
+.near{position:absolute;top:4px;left:50%;transform:translateX(-50%);z-index:5;
+  display:inline-flex;align-items:center;gap:6px;font-size:10.5px;font-weight:700;
+  padding:6px 11px;border-radius:99px;background:rgba(23,31,39,.9);border:1px solid rgba(93,187,138,.3);
+  color:var(--moss);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
+.near svg{width:12px;height:12px;fill:currentColor}
+
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="top">
+    <div class="mark">
+      <svg viewBox="0 0 24 24"><ellipse cx="6.6" cy="8.4" rx="2.4" ry="3.3"/><ellipse cx="11.9" cy="6.5" rx="2.4" ry="3.4"/><ellipse cx="17.3" cy="8.4" rx="2.4" ry="3.3"/><path d="M12 11.3c3.2 0 6 2.6 6 5.1 0 1.9-1.6 3-3.4 3-1.1 0-1.7-.5-2.6-.5s-1.5.5-2.6.5c-1.8 0-3.4-1.1-3.4-3 0-2.5 2.8-5.1 6-5.1z"/></svg>
+      발로 버는 사료
+    </div>
+    <div class="chip" id="chip"><i></i><span id="chipT">대기 중</span></div>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button role="tab" aria-selected="true" data-t="walk">산책</button>
+    <button role="tab" aria-selected="false" data-t="biz">사업성</button>
+    <button role="tab" aria-selected="false" data-t="ver">검증</button>
+  </div>
+
+  <section class="page" id="p-walk">
+
+    <div class="dial" id="dial">
+      <div class="glow"></div>
+      <div class="port" id="port"><div id="map"></div>
+        <div class="maperr">
+          <p>지도를 불러오지 못했습니다<br>궤적만 표시합니다</p>
+          <button id="bRetry">다시 시도</button>
+        </div>
+      </div>
+      <svg class="ov" viewBox="0 0 200 200">
+        <defs><linearGradient id="gr" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#F2B450"/><stop offset="100%" stop-color="#E08A3C"/></linearGradient></defs>
+        <polyline id="trace" fill="none" stroke="#5DBB8A" stroke-opacity=".55"
+          stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="100" cy="100" r="86" fill="none" stroke="#28323D" stroke-width="6"/>
+        <circle id="ring" cx="100" cy="100" r="86" fill="none" stroke="url(#gr)" stroke-width="6"
+          stroke-linecap="round" transform="rotate(-90 100 100)"
+          stroke-dasharray="540.4" stroke-dashoffset="540.4"/>
+      </svg>
+      <div class="face">
+        <div class="kmv" id="km">0.00</div>
+        <div class="kmu">KILOMETERS</div>
+        <div class="togo" id="togo">다음 발도장까지 <b>500</b>m</div>
+      </div>
+      <div class="near" id="near">
+        <svg viewBox="0 0 24 24"><ellipse cx="6.6" cy="8.4" rx="2.4" ry="3.3"/><ellipse cx="11.9" cy="6.5" rx="2.4" ry="3.4"/><ellipse cx="17.3" cy="8.4" rx="2.4" ry="3.3"/><path d="M12 11.3c3.2 0 6 2.6 6 5.1 0 1.9-1.6 3-3.4 3-1.1 0-1.7-.5-2.6-.5s-1.5.5-2.6.5c-1.8 0-3.4-1.1-3.4-3 0-2.5 2.8-5.1 6-5.1z"/></svg>
+        <span id="nearN">근처 —</span>
+      </div>
+      <div class="dctl">
+        <button id="bMap" class="act">지도 켜짐</button>
+        <button id="bFull">크게 보기</button>
+      </div>
+    </div>
+
+    <div class="stamps" id="stamps"></div>
+    <div class="stcap">오늘 <span id="sN">0</span> / 10 발도장 · 하루 적립 상한</div>
+
+    <div class="strip">
+      <div><div class="k">오늘</div><div class="v p" id="tP">0P</div></div>
+      <div><div class="k">누적</div><div class="v p" id="aP">1,280P</div></div>
+      <div><div class="k">산책 시간</div><div class="v" id="el">0:00</div></div>
+    </div>
+
+    <div class="card">
+      <div class="eb g">우리 동네</div>
+      <div class="grid2">
+        <div class="cell"><div class="k">지금 산책 중</div><div class="v g" id="nowN">—</div></div>
+        <div class="cell"><div class="k">오늘 이 근처를</div><div class="v" id="todayN">—</div></div>
+      </div>
+      <p style="margin-top:12px">누가 어디 있는지는 표시하지 않습니다. <b>몇 마리인지만</b> 보여드립니다. 지도의 발자국은 시간이 지난 뒤 위치를 뭉개서 남긴 익명 흔적입니다.</p>
+    </div>
+
+    <div class="card">
+      <div class="eb g">내 프로필</div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+        <div style="width:44px;height:44px;border-radius:13px;background:var(--raise2);display:grid;place-items:center;font-size:22px">🐕</div>
+        <div><div style="font-weight:800;letter-spacing:-.02em">보리 · 말티즈 4살</div>
+        <div style="font-size:12px;color:var(--dim2);margin-top:2px">인천 부평구</div></div>
+      </div>
+      <span class="badge">
+        <svg viewBox="0 0 24 24"><path d="M12 2l7 3v6c0 4.5-3 8.5-7 11-4-2.5-7-6.5-7-11V5l7-3zm-1 13l6-6-1.4-1.4L11 12.2 8.4 9.6 7 11l4 4z"/></svg>
+        동물등록번호 인증 완료
+      </span>
+      <p style="margin-top:12px">인증 견주의 노출만 광고주에게 과금됩니다. 인증하면 적립도 <b>회당 10P → 13P</b>로 올라갑니다.</p>
+    </div>
+
+    <div class="card">
+      <div class="eb">포인트 쓰는 곳</div>
+      <p>사료 정기구독 · 제휴 동물병원 진료비 · 제휴 펫샵<br>사료 한 포대 = <b>30,000P</b></p>
+    </div>
+  </section>
+
+  <section class="page" id="p-biz" hidden>
+    <div class="card">
+      <div class="eb">광고주 미팅용</div>
+      <h3>이 단가면 우리 쪽 CPM이 얼마인가</h3>
+      <p>슬라이더를 움직이면 광고주가 실제로 내는 돈과 견주가 받는 포인트가 그 자리에서 다시 계산됩니다.</p>
+    </div>
+    <div class="card">
+      <div class="fld"><label>시청 1회 과금 <b><span id="oC">25</span>원</b></label>
+        <input type="range" id="sC" min="10" max="50" step="1" value="25"></div>
+      <div class="fld"><label>견주 환원율 <b><span id="oR">40</span>%</b></label>
+        <input type="range" id="sR" min="20" max="70" step="5" value="40"></div>
+      <div class="fld"><label>하루 평균 산책 <b><span id="oK">3.0</span>km</b></label>
+        <input type="range" id="sK" min="10" max="80" step="5" value="30"></div>
+      <div class="fld"><label>가입자 수 <b><span id="oU">10,000</span>명</b></label>
+        <input type="range" id="sU" min="1" max="100" step="1" value="10"></div>
+      <div class="fld"><label>검증률 <b><span id="oV">70</span>%</b></label>
+        <input type="range" id="sV" min="10" max="100" step="5" value="70"></div>
+    </div>
+    <div class="card">
+      <div class="eb">견주 한 명 기준</div>
+      <div class="grid2">
+        <div class="cell"><div class="k">하루 적립</div><div class="v p" id="dP">—</div></div>
+        <div class="cell"><div class="k">한 달 적립</div><div class="v p" id="mP">—</div></div>
+        <div class="cell"><div class="k">사료 한 포대의</div><div class="v" id="fP">—</div></div>
+        <div class="cell"><div class="k">하루 광고 시청</div><div class="v" id="vC">—</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="eb g">회사 기준 · 월</div>
+      <div class="grid2">
+        <div class="cell"><div class="k">총 노출</div><div class="v" id="tI">—</div></div>
+        <div class="cell"><div class="k">과금 대상 (인증)</div><div class="v g" id="bI">—</div></div>
+        <div class="cell"><div class="k">광고 매출</div><div class="v" id="rV">—</div></div>
+        <div class="cell"><div class="k">포인트 환원 후</div><div class="v" id="nV">—</div></div>
+      </div>
+    </div>
+    <div class="note"><b>미인증 노출은 과금하지 않습니다</b>
+      검증률을 내려 보시면 매출이 같이 내려갑니다. 광고주가 지는 리스크를 우리가 대신 지는 구조라, 원장님 입장에서 거절할 이유가 사라집니다.</div>
+  </section>
+
+  <section class="page" id="p-ver" hidden>
+    <div class="card">
+      <div class="eb">매달 보내는 문서</div>
+      <div class="rep">
+        <div class="rh">2026년 8월</div><div class="rt">행복한동물병원</div>
+        <div class="rl"><span>총 노출</span><span>5,120</span></div>
+        <div class="rl ind hi"><span>인증 견주 노출</span><span>3,940 · 77%</span></div>
+        <div class="rl ind off"><span>미인증 — 과금 없음</span><span>1,180</span></div>
+        <div class="rl"><span>반경 3km 인증 견주</span><span>412명</span></div>
+        <div class="rl"><span>주요 산책 시간대</span><span>07:10 / 19:40</span></div>
+        <div class="rl tot"><span>이번 달 청구</span><span>98,500원</span></div>
+      </div>
+      <p style="margin-top:13px">캐시워크는 이 문서를 만들 수 없습니다. 만들 데이터가 없기 때문입니다.</p>
+    </div>
+    <div class="card">
+      <div class="eb g">개를 키운다는 증명 · 3단</div>
+      <ul class="rows">
+        <li><b>1</b><span><em>동물등록번호 인증.</em> 정부 오픈API로 조회합니다. 등록번호는 개 한 마리당 하나라 다계정 어뷰징이 원천 차단됩니다.</span></li>
+        <li><b>2</b><span><em>산책 패턴 분석.</em> 개 산책은 평균 2.5~3.5km/h에 30분간 20~40회 멈춥니다. 사람 운동 걷기와 물리적으로 다릅니다.</span></li>
+        <li><b>3</b><span><em>목줄 태그.</em> 병원 이름을 새겨 무료 배포합니다. 병원은 브랜드를 얻고, 우리는 물리적 검증을 얻습니다.</span></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>가짜 GPS는 막지 않습니다</h3>
+      <p>모의 위치 앱은 안드로이드 표준 기능이라 완전히 막을 수 없습니다. 대신 <b>막을 필요가 없는 구조</b>로 만들었습니다.</p>
+      <p>뚫는 사람은 어차피 인증이 안 되어 <b>과금 대상이 아닙니다.</b> 광고주 손해는 0원이고, 우리 손해는 하루 상한 10회에 묶여 <b>100원</b>으로 확정됩니다.</p>
+    </div>
+    <div class="card">
+      <h3>다른 강아지를 점으로 안 찍는 이유</h3>
+      <p>실시간으로 개인의 위치를 다른 이용자에게 보여주면 위치정보법 제19조의 <b>제3자 제공</b>이 됩니다. 볼 때마다 당사자에게 통보해야 하고, 동의 없이 하면 <b>5년 이하 징역 또는 5천만원 이하 벌금</b>입니다.</p>
+      <p>법을 떠나서도 위험합니다. 산책 경로는 <b>집 근처에서 매일 같은 시간에 반복</b>됩니다. 개별 위치를 공개하는 건 사는 곳과 혼자 나와 있는 시간을 함께 공개하는 일입니다.</p>
+      <p>그래서 지도에는 <b>익명 · 위치 뭉갬 · 시간 지연</b>된 흔적만 남기고, 실시간으로는 <b>마릿수만</b> 보여줍니다.</p>
+    </div>
+
+    <div class="card">
+      <div class="eb">그런데 이게 오히려 상품이 됩니다</div>
+      <p>광고주에게 파는 것도 개별 위치가 아니라 <b>밀집도</b>입니다. "원장님 병원 반경 3km에 지금 이 시간대 몇 마리가 걷고 있는지"가 곧 월간 리포트의 재료입니다.</p>
+      <p>개별 점은 팔 수도 없고 팔아서도 안 되지만, <b>밀집도는 팔 수 있고 캐시워크는 갖고 있지 않습니다.</b></p>
+    </div>
+
+    <div class="note"><b>지도를 쓰면 좌표가 밖으로 나갑니다</b>
+      지도 타일은 외부 서버에서 받아오므로 견주의 위치가 그 회사로 전달됩니다. 규제 문서의 "GPS 원본 즉시 파기" 원칙과 부딪히는 지점이라, 정식 출시 전에 변호사 확인이 필요합니다. 그래서 지도는 끌 수 있게 해두었습니다.</div>
+  </section>
+</div>
+
+<div class="cta" id="cta">
+  <div class="cta-in">
+    <button class="btn" id="bMain">산책 시작</button>
+    <button class="btn ghost" id="bStop" hidden>종료</button>
+  </div>
+</div>
+
+<!-- fullscreen map -->
+<div class="full" id="full" hidden>
+  <div id="bigmap"></div>
+  <div class="fbar">
+    <div class="t"><b id="fkm">0.00</b> km · <span id="fst">발도장 0</span></div>
+    <button class="fx" id="fclose">✕</button>
+  </div>
+</div>
+
+<div class="sheet" id="sheet" hidden>
+  <div class="sin">
+    <div class="hnd"></div>
+    <div id="s1">
+      <h2>500m 달성</h2>
+      <p class="sub">광고를 끝까지 보면 포인트가 적립됩니다</p>
+      <div class="ad"><div class="tg">광고</div>
+        <div class="nm" id="aN">행복한동물병원</div>
+        <div class="ln" id="aL">중성화 상담 · 도보 8분</div>
+        <div class="cnt" id="aC" hidden>5</div></div>
+      <button class="btn" style="width:100%" id="bAd">광고 보고 10P 받기</button>
+    </div>
+    <div id="s2" hidden>
+      <h2>적립 완료</h2>
+      <div class="won" id="dP2">+10P</div>
+      <p class="sub" id="dS">광고주 과금 25원 중 10원이 견주에게 갑니다</p>
+      <button class="btn" style="width:100%" id="bX">계속 걷기</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+(function(){
+"use strict";
+var $=function(i){return document.getElementById(i)};
+var HOME=[37.4894,126.7246]; // 인천 부평 — 시뮬레이션 기준점
+var S={run:false,sim:false,d:0,st:0,tp:0,ap:1280,t0:0,wid:null,tm:null,sm:null,last:null,wl:null,
+       CPV:25,RATE:40,STEP:500,CAP:10,pts:[],ll:[],ang:0,cur:HOME.slice(),mapOn:true};
+var ADS=[{n:"행복한동물병원",l:"중성화 상담 · 도보 8분"},{n:"펫스토어 라온",l:"연어 사료 20% · 도보 4분"},
+         {n:"우리동네 애견미용",l:"첫 방문 스파 무료 · 도보 11분"},{n:"24시 청담동물병원",l:"야간 진료 · 차로 6분"}];
+var PAW='<svg viewBox="0 0 24 24"><ellipse cx="6.6" cy="8.4" rx="2.4" ry="3.3"/><ellipse cx="11.9" cy="6.5" rx="2.4" ry="3.4"/><ellipse cx="17.3" cy="8.4" rx="2.4" ry="3.3"/><path d="M12 11.3c3.2 0 6 2.6 6 5.1 0 1.9-1.6 3-3.4 3-1.1 0-1.7-.5-2.6-.5s-1.5.5-2.6.5c-1.8 0-3.4-1.1-3.4-3 0-2.5 2.8-5.1 6-5.1z"/></svg>';
+(function(){var h="";for(var i=0;i<10;i++)h+='<div class="st" id="st'+i+'">'+PAW+'</div>';$("stamps").innerHTML=h})();
+var C=2*Math.PI*86, HAS_L=false;
+function fmt(n){return String(n).replace(/\B(?=(\d{3})+(?!\d))/g,",")}
+function chip(c,t){$("chip").className="chip"+(c?" "+c:"");$("chipT").textContent=t}
+function beep(hi){try{var A=window.AudioContext||window.webkitAudioContext;if(!A)return;
+var c=new A(),o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.type="sine";
+o.frequency.value=hi?988:660;g.gain.setValueAtTime(.0001,c.currentTime);
+g.gain.exponentialRampToValueAtTime(.25,c.currentTime+.02);
+g.gain.exponentialRampToValueAtTime(.0001,c.currentTime+.5);o.start();o.stop(c.currentTime+.51)}catch(e){}}
+function hav(a,b){var R=6371000,p=Math.PI/180,x=(b[0]-a[0])*p,y=(b[1]-a[1])*p;
+var s=Math.sin(x/2)*Math.sin(x/2)+Math.cos(a[0]*p)*Math.cos(b[0]*p)*Math.sin(y/2)*Math.sin(y/2);
+return 2*R*Math.atan2(Math.sqrt(s),Math.sqrt(1-s))}
+
+/* ---------- maps ---------- */
+var TILESETS=[
+  {u:"https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+   o:{subdomains:"abcd",maxZoom:20,attribution:"© OpenStreetMap © CARTO"},dk:false},
+  {u:"https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+   o:{subdomains:"abc",maxZoom:19,attribution:"© OpenStreetMap"},dk:true},
+  {u:"https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+   o:{maxZoom:19,attribution:"© OpenStreetMap"},dk:true}
+];
+var m1=null,m2=null,line1=null,line2=null,dot1=null,dot2=null,glow1=null,glow2=null;
+var icon=null, mapDead=false;
+
+function addTiles(map,i,onFail){
+  var t=TILESETS[i];
+  if(!t){onFail&&onFail();return}
+  var lay=L.tileLayer(t.u,t.o), ok=false, errs=0, done=false;
+  lay.on("tileload",function(){ok=true});
+  lay.on("tileerror",function(){
+    if(done||ok)return;
+    if(++errs>=3){done=true;try{map.removeLayer(lay)}catch(e){}
+      addTiles(map,i+1,onFail)}
+  });
+  setTimeout(function(){
+    if(done||ok)return; done=true;
+    try{map.removeLayer(lay)}catch(e){}
+    addTiles(map,i+1,onFail);
+  },6000);
+  lay.addTo(map);
+  map.getContainer().classList.toggle("dk",!!t.dk);
+}
+
+function mkMap(el,inter,onFail){
+  var m=L.map(el,{zoomControl:inter,dragging:inter,scrollWheelZoom:inter,doubleClickZoom:inter,
+    touchZoom:inter,boxZoom:false,keyboard:false,attributionControl:true}).setView(HOME,17);
+  addTiles(m,0,onFail);
+  return m;
+}
+function died(){
+  mapDead=true; S.mapOn=false;
+  $("port").classList.add("dead","off");
+  $("bMap").classList.remove("act"); $("bMap").textContent="지도 꺼짐";
+  drawTrace();
+}
+function initDial(){
+  if(!HAS_L||m1)return;
+  try{
+    m1=mkMap("map",false,died);
+    glow1=L.polyline([],{color:"#5DBB8A",weight:9,opacity:.16,lineCap:"round",lineJoin:"round"}).addTo(m1);
+    line1=L.polyline([],{color:"#5DBB8A",weight:3,opacity:.95,lineCap:"round",lineJoin:"round"}).addTo(m1);
+    dot1=L.marker(HOME,{icon:icon}).addTo(m1);
+    kick();
+  }catch(e){ died(); }
+}
+function kick(){
+  [60,300,900].forEach(function(d){
+    setTimeout(function(){ if(m1)try{m1.invalidateSize()}catch(e){} },d);
+  });
+}
+window.addEventListener("load",kick);
+window.addEventListener("resize",function(){if(m1)try{m1.invalidateSize()}catch(e){}});
+
+function initBig(){
+  if(!HAS_L||mapDead)return;
+  if(!m2){
+    m2=mkMap("bigmap",true);
+    glow2=L.polyline([],{color:"#5DBB8A",weight:14,opacity:.15,lineCap:"round",lineJoin:"round"}).addTo(m2);
+    line2=L.polyline([],{color:"#5DBB8A",weight:4,opacity:.95,lineCap:"round",lineJoin:"round"}).addTo(m2);
+    dot2=L.marker(S.cur,{icon:icon}).addTo(m2);
+  }
+  paintAmb();
+  setTimeout(function(){m2.invalidateSize();
+    if(S.ll.length>1)m2.fitBounds(line2.getBounds(),{padding:[60,60]});
+    else m2.setView(S.cur,17)},120);
+}
+
+/* ---------- 근처 강아지: 익명 · 격자 스냅 · 시간 지연 ----------
+   개별 위치는 절대 그대로 쓰지 않는다. 100m 격자 중심으로 뭉개고,
+   지나간 뒤에만 남기며, 누구인지는 저장하지도 표시하지도 않는다. */
+var GRID=0.0009, amb=[], ambG1=null, ambG2=null, liveN=0;
+var PAWI='<svg viewBox="0 0 24 24"><ellipse cx="6.6" cy="8.4" rx="2.4" ry="3.3"/><ellipse cx="11.9" cy="6.5" rx="2.4" ry="3.4"/><ellipse cx="17.3" cy="8.4" rx="2.4" ry="3.3"/><path d="M12 11.3c3.2 0 6 2.6 6 5.1 0 1.9-1.6 3-3.4 3-1.1 0-1.7-.5-2.6-.5s-1.5.5-2.6.5c-1.8 0-3.4-1.1-3.4-3 0-2.5 2.8-5.1 6-5.1z"/></svg>';
+function snap(v){return Math.round(v/GRID)*GRID}
+function genAmb(c){
+  amb=[];
+  for(var i=0;i<30;i++){
+    var a=Math.random()*Math.PI*2, r=Math.sqrt(Math.random())*.0115;
+    amb.push({ll:[snap(c[0]+Math.sin(a)*r), snap(c[1]+Math.cos(a)*r*1.25)],
+              age:Math.random(), n:1+Math.floor(Math.random()*6)});
+  }
+  paintAmb();
+}
+function ambIcon(o,big){
+  var s=big?20:15;
+  return L.divIcon({className:"",iconSize:[s,s],iconAnchor:[s/2,s/2],
+    html:'<div class="gp" style="opacity:'+o.toFixed(2)+'">'+PAWI+'</div>'});
+}
+function paintAmb(){
+  if(!HAS_L||!amb.length)return;
+  if(m1){ if(ambG1)m1.removeLayer(ambG1); ambG1=L.layerGroup();
+    amb.forEach(function(p){L.marker(p.ll,{icon:ambIcon(.5-p.age*.32,false),interactive:false}).addTo(ambG1)});
+    ambG1.addTo(m1); }
+  if(m2){ if(ambG2)m2.removeLayer(ambG2); ambG2=L.layerGroup();
+    amb.forEach(function(p){L.marker(p.ll,{icon:ambIcon(.55-p.age*.32,true),interactive:false}).addTo(ambG2)});
+    ambG2.addTo(m2); }
+}
+function updNear(){
+  var tot=amb.reduce(function(a,p){return a+p.n},0);
+  liveN=Math.max(3,liveN+Math.round((Math.random()-.5)*3));
+  $("nearN").textContent="근처 "+liveN+"마리";
+  $("nowN").textContent=liveN+"마리";
+  $("todayN").textContent=tot+"마리";
+}
+setInterval(function(){
+  updNear();
+  if(amb.length&&Math.random()<.35){
+    amb.forEach(function(p){p.age=Math.min(1,p.age+.02)});
+    paintAmb();
+  }
+},9000);
+
+function pushLL(lat,lon){
+  S.cur=[lat,lon]; S.ll.push(S.cur);
+  if(S.ll.length>1500)S.ll.shift();
+  if(line1){line1.setLatLngs(S.ll);glow1.setLatLngs(S.ll);dot1.setLatLng(S.cur);
+    if(S.mapOn)m1.setView(S.cur,m1.getZoom(),{animate:false})}
+  if(line2){line2.setLatLngs(S.ll);glow2.setLatLngs(S.ll);dot2.setLatLng(S.cur);
+    if(!$("full").hidden)m2.panTo(S.cur,{animate:false})}
+  // SVG fallback trace
+  var x=lon*111320*Math.cos(lat*Math.PI/180), y=-lat*110540;
+  S.pts.push([x,y]); if(S.pts.length>260)S.pts.shift();
+  drawTrace();
+}
+function drawTrace(){
+  if(S.pts.length<2){$("trace").setAttribute("points","");return}
+  if(S.mapOn&&m1){$("trace").setAttribute("points","");return}
+  var xs=S.pts.map(function(p){return p[0]}),ys=S.pts.map(function(p){return p[1]});
+  var x0=Math.min.apply(null,xs),x1=Math.max.apply(null,xs),y0=Math.min.apply(null,ys),y1=Math.max.apply(null,ys);
+  var w=Math.max(x1-x0,1e-6),h=Math.max(y1-y0,1e-6),sc=Math.min(112/w,112/h),cx=(x0+x1)/2,cy=(y0+y1)/2;
+  $("trace").setAttribute("points",S.pts.map(function(p){
+    return (100+(p[0]-cx)*sc).toFixed(1)+","+(100+(p[1]-cy)*sc).toFixed(1)}).join(" "));
+}
+
+$("bMap").addEventListener("click",function(){
+  S.mapOn=!S.mapOn;
+  $("port").classList.toggle("off",!S.mapOn);
+  this.classList.toggle("act",S.mapOn);
+  this.textContent=S.mapOn?"지도 켜짐":"지도 꺼짐";
+  drawTrace();
+  if(S.mapOn&&!m1)initDial();
+});
+$("bFull").addEventListener("click",function(){$("full").hidden=false;initBig()});
+$("fclose").addEventListener("click",function(){$("full").hidden=true});
+
+/* ---------- core ---------- */
+function render(){
+  $("km").textContent=(S.d/1000).toFixed(2);
+  $("fkm").textContent=(S.d/1000).toFixed(2);
+  $("fst").textContent="발도장 "+S.st;
+  var into=S.d%S.STEP,togo=Math.max(0,Math.round(S.STEP-into));
+  $("ring").setAttribute("stroke-dashoffset",C*(1-into/S.STEP));
+  $("togo").innerHTML=S.st>=S.CAP?'오늘 적립 상한 도달':'다음 발도장까지 <b>'+togo+'</b>m';
+  $("sN").textContent=S.st;$("tP").textContent=S.tp+"P";$("aP").textContent=fmt(S.ap)+"P";
+  if(S.run){var s=Math.floor((Date.now()-S.t0)/1000);
+    $("el").textContent=Math.floor(s/60)+":"+("0"+(s%60)).slice(-2)}
+}
+function add(m){if(!S.run||m<=0)return;var b=Math.floor(S.d/S.STEP);S.d+=m;render();
+  if(Math.floor(S.d/S.STEP)>b&&S.st<S.CAP)open()}
+
+function startGPS(){
+  if(!navigator.geolocation)return toSim("위치 미지원");
+  var got=false;chip("","위치 확인 중");
+  S.wid=navigator.geolocation.watchPosition(function(p){
+    got=true;chip("on","GPS ±"+Math.round(p.coords.accuracy)+"m");
+    var c=[p.coords.latitude,p.coords.longitude];
+    if(!S.ll.length){ if(m1)m1.setView(c,17); genAmb(c); }
+    pushLL(c[0],c[1]);
+    if(p.coords.accuracy>35)return;
+    if(S.last){var d=hav(S.last,c),dt=Math.max(.5,(p.timestamp-S.lastT)/1000);
+      if(d>=4){if(d/dt<=4.5)add(d);S.last=c;S.lastT=p.timestamp}}
+    else{S.last=c;S.lastT=p.timestamp}
+  },function(e){if(!got)toSim(e.code===1?"권한 거부":"GPS 불가")},
+  {enableHighAccuracy:true,maximumAge:1000,timeout:12000});
+  setTimeout(function(){if(!got&&S.run)toSim("신호 없음")},13000);
+}
+function toSim(w){
+  if(S.sim)return;stopGPS();S.sim=true;chip("sim","시뮬레이션 · "+w);
+  if(!S.ll.length){S.cur=HOME.slice();if(m1)m1.setView(HOME,17)}
+  S.sm=setInterval(function(){
+    S.ang+=(Math.random()-.5)*.7;
+    var step=1.35;
+    S.cur=[S.cur[0]+Math.sin(S.ang)*step/110540,
+           S.cur[1]+Math.cos(S.ang)*step/(111320*Math.cos(S.cur[0]*Math.PI/180))];
+    pushLL(S.cur[0],S.cur[1]);add(step);
+  },1000);
+}
+function stopGPS(){if(S.wid!==null){navigator.geolocation.clearWatch(S.wid);S.wid=null}
+  if(S.sm){clearInterval(S.sm);S.sm=null}}
+function wake(on){try{
+  if(on&&navigator.wakeLock&&!S.wl)navigator.wakeLock.request("screen").then(function(w){S.wl=w}).catch(function(){});
+  else if(!on&&S.wl){S.wl.release();S.wl=null}}catch(e){}}
+document.addEventListener("visibilitychange",function(){
+  if(document.visibilityState==="visible"&&S.run)wake(true)});
+
+$("bMain").addEventListener("click",function(){
+  if(S.run){toSim("수동 전환");return}
+  S.run=true;S.t0=Date.now();S.last=null;S.sim=false;
+  $("dial").classList.add("live");$("bMain").textContent="시뮬레이션으로";$("bStop").hidden=false;
+  wake(true);beep();S.tm=setInterval(render,1000);startGPS();render();
+});
+$("bStop").addEventListener("click",function(){
+  S.run=false;stopGPS();if(S.tm){clearInterval(S.tm);S.tm=null}wake(false);
+  $("dial").classList.remove("live");$("bMain").textContent="산책 시작";
+  $("bStop").hidden=true;chip("","종료됨");
+});
+
+var busy=false;
+function rw(){return Math.round(S.CPV*S.RATE/100)}
+function open(){
+  var a=ADS[S.st%ADS.length];
+  $("aN").textContent=a.n;$("aL").textContent=a.l;
+  $("s1").hidden=false;$("s2").hidden=true;$("aC").hidden=true;
+  $("bAd").hidden=false;$("bAd").textContent="광고 보고 "+rw()+"P 받기";
+  $("sheet").hidden=false;$("cta").style.display="none";busy=false;
+  $("dial").classList.add("flare");setTimeout(function(){$("dial").classList.remove("flare")},260);
+  beep(true);
+}
+$("bAd").addEventListener("click",function(){
+  if(busy)return;busy=true;$("bAd").hidden=true;
+  var n=5;$("aC").hidden=false;$("aC").textContent=n;
+  var iv=setInterval(function(){
+    if(--n>0){$("aC").textContent=n;return}
+    clearInterval(iv);
+    var p=rw();S.st++;S.tp+=p;S.ap+=p;
+    var e=$("st"+(S.st-1));
+    if(e){e.classList.add("done","hit");setTimeout(function(){e.classList.remove("hit")},330)}
+    $("dP2").textContent="+"+p+"P";
+    $("dS").textContent="광고주 과금 "+S.CPV+"원 중 "+p+"원이 견주에게 갑니다";
+    $("s1").hidden=true;$("s2").hidden=false;beep(true);render();
+  },1000);
+});
+$("bX").addEventListener("click",function(){$("sheet").hidden=true;$("cta").style.display=""});
+
+function sim(){
+  var c=+$("sC").value,r=+$("sR").value,k=+$("sK").value/10,u=+$("sU").value*1000,v=+$("sV").value;
+  S.CPV=c;S.RATE=r;
+  $("oC").textContent=c;$("oR").textContent=r;$("oK").textContent=k.toFixed(1);
+  $("oU").textContent=fmt(u);$("oV").textContent=v;
+  var views=Math.min(S.CAP,Math.floor(k*1000/S.STEP)),per=Math.round(c*r/100);
+  $("vC").textContent=views+"회";$("dP").textContent=fmt(views*per)+"P";
+  $("mP").textContent=fmt(views*per*30)+"P";$("fP").textContent=(views*per*30/30000*100).toFixed(0)+"%";
+  var ti=views*u*30,bi=Math.round(ti*v/100),rev=bi*c;
+  $("tI").textContent=big(ti)+"회";$("bI").textContent=big(bi)+"회";
+  $("rV").textContent=mon(rev);$("nV").textContent=mon(rev*(100-r)/100);
+}
+function big(n){return n>=10000?(n/10000).toFixed(0)+"만":fmt(n)}
+function mon(n){return n>=100000000?(n/100000000).toFixed(1)+"억":fmt(Math.round(n/10000))+"만원"}
+["sC","sR","sK","sU","sV"].forEach(function(i){$(i).addEventListener("input",sim)});
+sim();
+
+var tb=document.querySelectorAll('[role="tab"]');
+Array.prototype.forEach.call(tb,function(b){
+  b.addEventListener("click",function(){
+    Array.prototype.forEach.call(tb,function(x){x.setAttribute("aria-selected","false")});
+    b.setAttribute("aria-selected","true");
+    ["walk","biz","ver"].forEach(function(t){$("p-"+t).hidden=(t!==b.dataset.t)});
+    $("cta").style.display=(b.dataset.t==="walk")?"":"none";
+    if(b.dataset.t==="walk"&&m1)setTimeout(function(){m1.invalidateSize()},60);
+    window.scrollTo(0,0);
+  });
+});
+
+function boot(){
+  if(typeof L==="undefined"){ died(); $("bFull").style.display="none"; }
+  else{
+    HAS_L=true;
+    icon=L.divIcon({className:"",html:'<div class="pulse"></div>',iconSize:[14,14],iconAnchor:[7,7]});
+    initDial(); genAmb(HOME);
+  }
+  liveN=9; updNear();
+  render(); chip("","대기 중");
+}
+function loadL(cb){
+  if(typeof L!=="undefined")return cb();
+  var srcs=["https://unpkg.com/leaflet@1.9.4/dist/leaflet.js",
+            "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"], i=0;
+  (function nxt(){
+    if(i>=srcs.length)return cb();
+    var s=document.createElement("script");
+    s.src=srcs[i++]; s.onload=function(){cb()}; s.onerror=nxt;
+    document.head.appendChild(s);
+  })();
+}
+$("bRetry").addEventListener("click",function(){
+  $("port").classList.remove("dead","off");
+  mapDead=false; m1=null;
+  loadL(function(){
+    if(typeof L==="undefined")return died();
+    HAS_L=true;
+    if(!icon)icon=L.divIcon({className:"",html:'<div class="pulse"></div>',iconSize:[14,14],iconAnchor:[7,7]});
+    S.mapOn=true; $("bMap").classList.add("act"); $("bMap").textContent="지도 켜짐";
+    initDial(); paintAmb();
+    if(S.ll.length){line1.setLatLngs(S.ll);glow1.setLatLngs(S.ll);dot1.setLatLng(S.cur);m1.setView(S.cur,17)}
+    drawTrace();
+  });
+});
+loadL(boot);
+})();
+</script>
+</body>
+</html>
