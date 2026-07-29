@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="발로 버는 사료">
 <meta name="theme-color" content="#0E1319">
-<title>내 사료는 내가 벌어요</title>
+<title>발로 버는 사료 — 사료값은 내가 직접 벌어요</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&display=swap" rel="stylesheet">
@@ -35,8 +35,11 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
   padding:calc(env(safe-area-inset-top) + 12px) 20px calc(env(safe-area-inset-bottom) + 96px)}
 
 .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
-.mark{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:800;letter-spacing:-.03em}
-.mark svg{width:19px;height:19px;fill:var(--halo)}
+.mark{display:flex;align-items:center;gap:9px}
+.mark svg{width:21px;height:21px;fill:var(--halo);flex:none}
+.mk{display:flex;flex-direction:column}
+.mk b{font-size:14.5px;font-weight:800;letter-spacing:-.035em;line-height:1.15}
+.mk span{font-size:9.5px;font-weight:600;color:var(--dim2);letter-spacing:-.005em;margin-top:2px}
 .chip{display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:700;
   padding:6px 11px;border-radius:99px;background:var(--raise);border:1px solid var(--line);color:var(--dim)}
 .chip i{width:6px;height:6px;border-radius:50%;background:var(--dim2);flex:none}
@@ -222,7 +225,7 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border:none;border-ra
   <div class="top">
     <div class="mark">
       <svg viewBox="0 0 24 24"><ellipse cx="6.6" cy="8.4" rx="2.4" ry="3.3"/><ellipse cx="11.9" cy="6.5" rx="2.4" ry="3.4"/><ellipse cx="17.3" cy="8.4" rx="2.4" ry="3.3"/><path d="M12 11.3c3.2 0 6 2.6 6 5.1 0 1.9-1.6 3-3.4 3-1.1 0-1.7-.5-2.6-.5s-1.5.5-2.6.5c-1.8 0-3.4-1.1-3.4-3 0-2.5 2.8-5.1 6-5.1z"/></svg>
-      발로 버는 사료
+      <div class="mk"><b>발로 버는 사료</b><span>사료값은 내가 직접 벌어요</span></div>
     </div>
     <div class="chip" id="chip"><i></i><span id="chipT">대기 중</span></div>
   </div>
